@@ -1,0 +1,314 @@
+#!/bin/bash
+#NYU Open Source Tools Assignment 3
+#Fall 2014
+#Author: Geon Kang
+#NYU ID: N17120399 
+
+IFS=$'\n'
+
+mkdir -p /home/gk698/.question
+mkdir -p /home/gk698/.question/questions
+mkdir -p /home/gk698/.question/answers
+mkdir -p /home/gk698/.question/votes
+chmod a+rx /home/gk698/.question
+chmod a+rx /home/gk698/.question/questions
+chmod a+rx /home/gk698/.question/answers
+chmod a+rx /home/gk698/.question/votes
+
+checkID(){
+  id=$1
+  slashCount=$(echo "$1" | grep -o "/" | wc -l)
+  echo "$slashCount"
+}
+
+if [[ $# -lt 1 ]]
+then
+  echo "Not enough arguments." >&2
+  exit 1
+fi
+
+case $1 in
+  "create")
+    if [[ "$#" -lt 2 ]]
+    then
+      echo "Not enough arguments" >&2
+	  exit 1
+    elif [[ "$#" -gt 3 ]]
+    then
+      echo "Too many arguments." >&2
+	  exit 1
+    fi
+    if [[ "$2" = */*  ]]
+    then
+      echo "Question name cannot contain forward slash." >&2
+      exit 1
+    fi
+    if [[ -f /home/gk698/.question/questions/$2 ]]
+    then
+      echo "Question with name:"$2" already exists." >&2
+	  exit 1
+    fi
+    if [[ -z "$3" ]]
+    then
+      read QUESTION
+	  if [[ -z $QUESTION || $QUESTION = "====" ]]
+      then
+        echo "Invalid question." >&2
+        exit 1
+	  else		
+	    echo "$QUESTION" > /home/gk698/.question/questions/"$2"
+		chmod a+r /home/gk698/.question/questions/"$2"
+	    exit 0
+      fi	  
+    elif [[ "$3" = "====" ]]
+    then
+      echo "Invalid question." >&2
+      exit 1
+    else	
+      echo "$3" > /home/gk698/.question/questions/"$2"
+	  chmod a+r /home/gk698/.question/questions/"$2"
+      exit 0	
+    fi	
+    ;;
+  "answer")
+    if [[ "$#" -lt 3 ]]
+    then
+      echo "Not enough arguments" >&2
+	  exit 1
+    elif [[ "$#" -gt 4 ]]
+    then
+      echo "Too many arguments." >&2
+	  exit 1
+    fi
+    numSlashes=$(checkID "$2")
+	if [[ ! numSlashes -eq 1 ]]
+	then
+	  echo "Invalid Question ID: "$2"" >&2
+	  exit 1
+    else
+	  login=$(echo "$2" | cut -d'/' -f1)
+	  name=$(echo "$2" | cut -d'/' -f2) 
+	fi
+    if [[ ! -f /home/"$login"/.question/questions/"$name" ]]
+	then
+	  echo "no such question: "$2"" >&2
+	  exit 1
+	fi
+	if [[ "$3" = */* ]] 
+	then
+	  echo "Answer name cannot contain a forward slash." >&2
+	  exit 1
+	fi
+	if [[ -f /home/gk698/.question/answers/"$login"/"$name"/$3 ]]
+    then
+      echo "Answer with name:"$3" already exists for $2" >&2
+	  exit 1
+    fi
+	if [[ -z "$4" ]]
+	then
+	  read ANSWER
+	  if [[ -z $ANSWER || $ANSWER = "====" ]]
+	  then
+	    echo "Invalid answer." >&2
+		exit 1
+	  else
+	    mkdir -p /home/gk698/.question/answers/"$login"/"$name"
+		echo "$ANSWER" > /home/gk698/.question/answers/"$login"/"$name"/"$3"
+		chmod a+rx /home/gk698/.question/answers/"$login"
+		chmod a+rx /home/gk698/.question/answers/"$login"/"$name"
+		chmod a+r /home/gk698/.question/answers/"$login"/"$name"/"$3"
+		exit 0
+	  fi
+	elif [[ "$4" = "====" ]]
+	then
+	  echo "Invalid answer." >&2
+	  exit 1
+	else
+	  mkdir -p /home/gk698/.question/answers/"$login"/"$name"
+	  echo "$4" > /home/gk698/.question/answers/"$login"/"$name"/"$3"
+	  chmod a+rx /home/gk698/.question/answers/"$login"
+	  chmod a+rx /home/gk698/.question/answers/"$login"/"$name"
+	  chmod a+r /home/gk698/.question/answers/"$login"/"$name"/"$3"
+	  exit 0
+	fi
+    ;;
+  "list")
+    if [[ "$#" -gt 2 ]]
+    then
+      echo "Too many arguments." >&2
+	  exit 1
+    fi
+    if [[ "$#" -eq 1 ]]
+    then
+      for user in $(cat /home/unixtool/data/question/users)
+      do
+        for file in /home/$user/.question/questions/*
+        do
+		  if [[ -f $file ]]
+		  then
+            echo "$user"/"$(basename "$file")"
+		  fi
+        done
+      done
+    else
+	  if [[ -d /home/"$2"/.question/questions ]]
+	  then
+	    for file in /home/"$2"/.question/questions/*
+        do
+		  if [[ -f $file ]]
+		  then
+	        echo "$(basename "$2")"/"$(basename "$file")"
+		  fi
+        done
+	  fi
+	fi
+    ;;	
+  "vote")
+    if [[ "$#" -lt 3 ]]
+    then
+      echo "Not enough arguments" >&2
+	  exit 1
+    elif [[ "$#" -gt 4 ]]
+    then
+      echo "Too many arguments." >&2
+	  exit 1
+    fi
+	if [[ "$2" != "up" ]] && [[ "$2" != "down" ]]
+	then
+	  echo "Invalid vote: "$2"" >&2
+	  exit 1
+	fi
+	numSlashesQID=$(checkID "$3")
+	if [[ ! $numSlashesQID -eq 1 ]]
+	then
+	  echo "Invalid Question ID: "$3"" >&2
+	  exit 1
+    else
+	  qlogin=$(echo "$3" | cut -d'/' -f1)
+	  qname=$(echo "$3" | cut -d'/' -f2) 
+	fi
+    if [[ ! -f /home/"$qlogin"/.question/questions/"$qname" ]]
+	then
+	  echo "no such question: "$3"" >&2
+	  exit 1
+	fi
+	if [[ ! -z "$4" ]]
+    then
+	  numSlashesAID=$(checkID "$4")
+	  if [[ ! $numSlashesAID -eq 1 ]]
+	  then
+	    echo "Invalid Answer ID: "$4"" >&2
+		exit 1
+	  else
+	    alogin=$(echo "$4" | cut -d'/' -f1)
+		aname=$(echo "$4" | cut -d'/' -f2)
+        if [[ ! -f /home/"$alogin"/.question/answers/"$qlogin"/"$qname"/"$aname" ]]
+        then
+          echo "no such answer: "$4" for "$3"" >&2
+          exit 1
+	    else
+	      mkdir -p /home/gk698/.question/votes/"$qlogin"
+		  chmod a+rx /home/gk698/.question/votes/"$qlogin"
+	      echo ""$2" "$4"" >> /home/gk698/.question/votes/"$qlogin"/"$qname"
+		  chmod a+r /home/gk698/.question/votes/"$qlogin"/"$qname"
+		  exit 0
+		fi
+	  fi
+	else
+	  mkdir -p /home/gk698/.question/votes/"$qlogin"
+	  chmod a+rx /home/gk698/.question/votes/"$qlogin"
+	  echo "$2" >> /home/gk698/.question/votes/"$qlogin"/"$qname"
+	  chmod a+r /home/gk698/.question/votes/"$qlogin"/"$qname"
+	  exit 0
+    fi
+    ;;
+  "view")
+    countQuestionIDs=0
+    for questionID in ${@:2}
+    do
+	  if [[ $countQuestionIDs -ne 0 ]]
+	  then
+	    echo "===="
+	  fi
+      numSlashesQID=$(checkID "$questionID")
+	  if [[ ! $numSlashesQID -eq 1 ]]
+	  then
+	    echo "Invalid Question ID: "$questionID"" >&2
+	    exit 1
+      else
+	    qlogin=$(echo "$questionID" | cut -d'/' -f1)
+	    qname=$(echo "$questionID" | cut -d'/' -f2) 
+	  fi
+      if [[ ! -f /home/"$qlogin"/.question/questions/"$qname" ]]
+	  then
+	    echo "no such question: "$questionID"" >&2
+	    exit 1
+	  fi
+	  declare -A VOTES
+	  declare -A COUNTS
+      for user in $(cat /home/unixtool/data/question/users)
+	  do
+	    if [[ -f /home/"$user"/.question/votes/"$qlogin"/"$qname" ]]
+	    then
+	      if [[ -r /home/"$user"/.question/votes/"$qlogin"/"$qname" ]]
+		  then
+		    while read line
+	        do
+			  numFields=$(echo $line | wc -w)
+              if [[ $numFields -eq 1 ]]
+			  then
+			    aID=$questionID;
+			  else
+     		    aID=$(echo $line | grep -o '\s.*/.*$' | sed 's/^ *//')
+              fi			  
+			  vote=$(echo $line | cut -d' ' -f1)
+			  VOTES["$aID"]=$vote
+	        done </home/"$user"/.question/votes/"$qlogin"/"$qname"
+		  fi
+		fi
+	    for v in "${!VOTES[@]}"
+		do
+		  if [[ ${VOTES["$v"]} = "up" ]]
+		  then
+		    COUNTS["$v"]=$((${COUNTS["$v"]:-0}+1))
+		  elif [[ ${VOTES["$v"]} = "down" ]]
+		  then
+			COUNTS["$v"]=$((${COUNTS["$v"]:-0}-1))
+		  fi
+		done
+		unset VOTES
+        declare -A VOTES		
+	  done
+	  index=$questionID
+	  echo ${COUNTS["$index"]:-0}
+	  cat /home/"$qlogin"/.question/questions/"$qname"
+      for user in $(cat /home/unixtool/data/question/users)
+      do
+        if [[ -d /home/"$user"/.question/answers/"$qlogin"/"$qname" ]]
+        then
+		  OIFS="$IFS"
+		  IFS=$'\n'
+          for file in /home/"$user"/.question/answers/"$qlogin"/"$qname"/*
+          do
+		    if [[ -f $file && -r $file ]]
+            then
+		      index="$user/"$(basename "$file")""
+              echo "===="
+			  echo ${COUNTS[$index]:-0} $index
+              cat $file
+            fi
+          done
+		  IFS="$OIFS"
+	    fi
+      done
+	  countQuestionIDs=$(($countQuestionIDs+1))
+    done
+    ;;	
+  *)
+    echo "Invalid option: $1" >&2
+	exit 1
+	;;
+esac
+
+
+
